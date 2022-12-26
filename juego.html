@@ -1,8 +1,8 @@
 <!DOCTYPE HTML>
-<html lang="en">
+<html lang="es">
 
 <head>
-	<title>Magic Block Game</title>
+	<title>Juego de fichas</title>
 	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -21,52 +21,86 @@
 	<link type="text/css" rel="stylesheet" href="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.min.css" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-vue/2.23.1/bootstrap-vue.min.js" integrity="sha512-SP/zE7YazvnUG95bWnA1AeC5+WtAOqumEHSgcKTNfVefAMsDcVCt6D3Q3goqR3vSf50zPG3OZtnMjBJd9GBgkw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 	<style>
-		div.game {
-			max-width: 80vh;
+		body, body::backdrop {
+    		background-color: rgba(255,255,255,0);
 		}
-		.game div.col {
+		div.cabecera {
+			top: 1em;
+    		position: absolute;
+			transform: translateX(-50%);
+			left: 50%;
+			width: 95%;
+		}
+		div.pie {
+			bottom: 1em;
+    		transform: translateX(-50%) rotate(180deg);
+    		position: absolute;
+			left: 50%;
+			width: 95%;
+		}
+		div.app-container {
+			width: 100%;
+			height: 100%;
+			position: absolute;
+		}
+		div.board {
+			aspect-ratio: 1 / 1;
+			width: Min(80vh,95vw);
+			height: Min(80vh,95vw);
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translateY(-50%) translateX(-50%);
+		}
+		.board div.col {
 			border: solid grey 1px;
 			border-radius: 10px;
 			aspect-ratio: 1 / 1;
 			margin: 5px;
 			box-shadow: 1px 2px 5px grey, white 1px 2px 2px inset;
 		}
-		.game div.col.red {
+		.board div.col.red {
 			background-color: #DD0030;
 		}
-		.game div.col.green {
+		.board div.col.green {
 			background-color: #00E000 /* green */;
 		}
-		.game div.col.blue {
+		.board div.col.blue {
 			background-color: #0028FF /* blue */;
 		}
-		.game div.col.white {
+		.board div.col.white {
 			background-color: white;
 		}
-		.game div.col.orange {
+		.board div.col.orange {
 			background-color: #FF9020;
 		}
-		.game div.col.yellow {
+		.board div.col.yellow {
 			background-color: #FFFC00 /* yellow */;
 		}
 	</style>
 </head>
 
 <body>
-	<div class="container" id="app">
-		<h1>Magic Block Game</h1>
-		<div class="d-flex justify-content-end">
-			<div><b-button @click="click">Agitar dados</b-button></div>
+	<div class="app-container" id="app">
+		<div class="cabecera">
+			<div class="d-flex justify-content-end">
+				<div><b-button @click.stop="click" @dblclick.stop="">{{rollDice}}</b-button></div>
+			</div>
 		</div>
 		<br/>
-		<b-container class="game">
+		<div class="container board">
 		  <b-row v-for="(row, index) in rows" v-bind:key="index">
 		    <b-col :class="row[0].color"></b-col>
 		    <b-col :class="row[1].color"></b-col>
 		    <b-col :class="row[2].color"></b-col>
 		  </b-row>
-		</b-container>
-		<pre>{{bug}}</pre>
+		</div>
+		<br/>
+		<div class="pie">
+			<div class="d-flex justify-content-end">
+				<div><b-button @click.stop="click" @dblclick.stop="">{{rollDice}}</b-button></div>
+			</div>
+		</div>
 	</div>
 	<script>
 		let wakeLockTimeout = null;
@@ -77,12 +111,13 @@
 			data: {
 				rows:[[{color:Color.WHITE}, {color:Color.WHITE}, {color:Color.WHITE}], [{color:Color.WHITE}, {color:Color.WHITE}, {color:Color.WHITE}], [{color:Color.WHITE}, {color:Color.WHITE}, {color:Color.WHITE}]],
 				bug:"",
+				title:"",
+				rollDice:"Agitar dados",
 			},
 			computed: {
-			},
+			},			
 			methods: {
-				async click() {
-					console.log("Clicked");
+				randomBoard() {
 					console.debug("rows1", {...this.rows});
 					let rows = this.rows;
 					let colorCount = {};
@@ -113,26 +148,42 @@
 						}
 					}
 					this.rows = rows;
+				},
+				async sleep(millis) {
+					return new Promise((resolve,reject)=>{
+						setTimeout(resolve, millis);
+					});
+				},
+				async click() {
+					console.log("Clicked");
+					for (let i = 0; i < 3; i++) {
+						this.randomBoard();
+						await this.sleep(200);
+					}
 					console.debug("rows2", {...this.rows});
 					if (window.localStorage) {
-						window.localStorage.rows = JSON.stringify(rows);
+						window.localStorage.rows = JSON.stringify(this.rows);
 					}
 					await this.requestWakeLock();
 				},
+				async releaseWakeLock() {
+					if (wakeLockTimeout) {
+						clearTimeout(wakeLockTimeout);
+						wakeLockTimeout = null;
+					}
+					if (wakeLock) {
+						wakeLock.release();
+						console.log('Screen Wake Lock released:', wakeLock.released, new Date());
+						wakeLock = null;
+					}
+				},
 				async requestWakeLock() {
 					try {
-						if (wakeLockTimeout) {
-							clearTimeout(wakeLockTimeout);
-						}
-						if (wakeLock) {
-							wakeLock.release();
-						}
+						this.releaseWakeLock();
 						wakeLock = await navigator.wakeLock.request();
 						console.log('Screen Wake Lock locked:', !wakeLock.released, new Date());
 						wakeLockTimeout = window.setTimeout(() => {
-							wakeLock.release();
-							console.log('Screen Wake Lock released:', wakeLock.released, new Date());
-							wakeLock = null;
+							this.releaseWakeLock();
 						}, 1000 * 60 * 5);
 					} catch (err) {
 						console.error(`${err.name}, ${err.message}`);
@@ -145,9 +196,18 @@
 					this.rows = JSON.parse(window.localStorage.rows);
 				}
 				this.requestWakeLock();
+				document.addEventListener("visibilitychange", () => {
+					if (document.hidden) {
+						this.releaseWakeLock();
+					} else {
+						this.requestWakeLock();
+					}
+				});
+
 			}
 		};
 		window.addEventListener('load', () => {
+			document.body.ondblclick=()=>document.body.requestFullscreen();
 			new Vue(App)
 		})
 
