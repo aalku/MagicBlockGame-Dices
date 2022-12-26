@@ -1,0 +1,159 @@
+<!DOCTYPE HTML>
+<html lang="en">
+
+<head>
+	<title>Magic Block Game</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<script src="https://polyfill.io/v3/polyfill.min.js?features=es2015"></script>
+	<!-- development version, includes helpful console warnings -->
+	<script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css"
+		integrity="sha384-xOolHFLEh07PJGoPkLv1IbcEPTNtaed2xpHsD9ESMhqIYd0nLMwNLD69Npy4HI+N" crossorigin="anonymous">
+	<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"
+		integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+		crossorigin="anonymous"></script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"
+		integrity="sha384-Fy6S3B9q64WdZWQUiU+q4/2Lc9npb8tCaSX9FK7E8HnRr0Jz8D6OP9dO5Vg3Q9ct"
+		crossorigin="anonymous"></script>
+	<!-- BootstapVue -->
+	<link type="text/css" rel="stylesheet" href="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.min.css" />
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-vue/2.23.1/bootstrap-vue.min.js" integrity="sha512-SP/zE7YazvnUG95bWnA1AeC5+WtAOqumEHSgcKTNfVefAMsDcVCt6D3Q3goqR3vSf50zPG3OZtnMjBJd9GBgkw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+	<style>
+		div.game {
+			max-width: 80vh;
+		}
+		.game div.col {
+			border: solid grey 1px;
+			border-radius: 10px;
+			aspect-ratio: 1 / 1;
+			margin: 5px;
+			box-shadow: 1px 2px 5px grey, white 1px 2px 2px inset;
+		}
+		.game div.col.red {
+			background-color: #DD0030;
+		}
+		.game div.col.green {
+			background-color: #00E000 /* green */;
+		}
+		.game div.col.blue {
+			background-color: #0028FF /* blue */;
+		}
+		.game div.col.white {
+			background-color: white;
+		}
+		.game div.col.orange {
+			background-color: #FF9020;
+		}
+		.game div.col.yellow {
+			background-color: #FFFC00 /* yellow */;
+		}
+	</style>
+</head>
+
+<body>
+	<div class="container" id="app">
+		<h1>Magic Block Game</h1>
+		<div class="d-flex justify-content-end">
+			<div><b-button @click="click">Agitar dados</b-button></div>
+		</div>
+		<br/>
+		<b-container class="game">
+		  <b-row v-for="(row, index) in rows" v-bind:key="index">
+		    <b-col :class="row[0].color"></b-col>
+		    <b-col :class="row[1].color"></b-col>
+		    <b-col :class="row[2].color"></b-col>
+		  </b-row>
+		</b-container>
+		<pre>{{bug}}</pre>
+	</div>
+	<script>
+		let wakeLockTimeout = null;
+		let wakeLock = null;
+		const Color = {RED: "red", GREEN: "green", BLUE: "blue", WHITE: "white", ORANGE: "orange", YELLOW: "yellow"};
+		const App = {
+			el: "#app",
+			data: {
+				rows:[[{color:Color.WHITE}, {color:Color.WHITE}, {color:Color.WHITE}], [{color:Color.WHITE}, {color:Color.WHITE}, {color:Color.WHITE}], [{color:Color.WHITE}, {color:Color.WHITE}, {color:Color.WHITE}]],
+				bug:"",
+			},
+			computed: {
+			},
+			methods: {
+				async click() {
+					console.log("Clicked");
+					console.debug("rows1", {...this.rows});
+					let rows = this.rows;
+					let colorCount = {};
+					for (c of Object.keys(Color)) {
+						colorCount[c] = 4;
+					}
+					console.debug("colorCount", colorCount);
+					// Recorre cada fila del array
+					for (let i = 0; i < rows.length; i++) {
+						// Recorre cada columna de la fila
+						for (let j = 0; j < rows[i].length; j++) {
+							// Elige un índice aleatorio del objeto colorCount
+							const colorIndex = Math.floor(Math.random() * Object.keys(colorCount).length);
+							// Selecciona el color correspondiente al índice elegido
+							const color = Object.keys(colorCount)[colorIndex];
+							// Asigna el color al elemento del array
+							rows[i][j].color = Color[color];
+							// Reduce la cuenta del color en el objeto colorCount
+							if (colorCount[color] <= 0) {
+								console.warn("bug", color, colorCount);
+								this.bug='BUG!!!';
+							}
+							colorCount[color]--;
+							// Si la cuenta del color llega a cero, elimina el color del objeto
+							if (colorCount[color] == 0) {
+								delete colorCount[color];
+							}
+						}
+					}
+					this.rows = rows;
+					console.debug("rows2", {...this.rows});
+					if (window.localStorage) {
+						window.localStorage.rows = JSON.stringify(rows);
+					}
+					await this.requestWakeLock();
+				},
+				async requestWakeLock() {
+					try {
+						if (wakeLockTimeout) {
+							clearTimeout(wakeLockTimeout);
+						}
+						if (wakeLock) {
+							wakeLock.release();
+						}
+						wakeLock = await navigator.wakeLock.request();
+						console.log('Screen Wake Lock locked:', !wakeLock.released, new Date());
+						wakeLockTimeout = window.setTimeout(() => {
+							wakeLock.release();
+							console.log('Screen Wake Lock released:', wakeLock.released, new Date());
+							wakeLock = null;
+						}, 1000 * 60 * 5);
+					} catch (err) {
+						console.error(`${err.name}, ${err.message}`);
+					}
+				}
+
+			},
+			async created() {
+				if (window.localStorage && window.localStorage.rows) {
+					this.rows = JSON.parse(window.localStorage.rows);
+				}
+				this.requestWakeLock();
+			}
+		};
+		window.addEventListener('load', () => {
+			new Vue(App)
+		})
+
+
+	</script>
+</body>
+
+</html>
+
