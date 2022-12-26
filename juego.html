@@ -207,7 +207,17 @@
 			}
 		};
 		window.addEventListener('load', () => {
-			document.body.ondblclick=()=>document.body.requestFullscreen();
+			document.body.ondblclick=()=>{
+				if (document.fullscreenElement) {
+					if (document.webkitCancelFullScreen) {
+						document.webkitCancelFullScreen();
+					}
+				} else {
+					if (document.body.requestFullscreen) {
+						document.body.requestFullscreen();
+					}
+				}
+			};
 			new Vue(App)
 		})
 
